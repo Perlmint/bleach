@@ -73,21 +73,40 @@ def write_suffix_py(out, suffix_list):
             out.write(' ' * indent + process(tmp, indent == 0))
         out.write(end)
 
-    # Write suffixes list.
-    #
-    # write('SUFFIXES = [', suffix_list, ' ]', 1,
-    #       lambda x, f: ', '.join(x) + ',',
-    #       lambda x: ('"%s"' % x, 2))
+    import re
 
-    # out.write('\n\n')
+    suffix_re_list = []
+    exceptional_domain_re_list = []
+    for suffix in suffix_list:
+        ''' make suffix to regular expression
+            1. replace `.` to `\\.`
+            2. special suffix rules.
+                - see https://publicsuffix.org/list/#list-format
+        '''
+
+        suffix = suffix.replace('.', '\\.')
+        suffix = re.sub(r'\*', '[^.]+', suffix)
+        # exceptional case
+        # this is not a suffix. It can be a whole domain.
+        if suffix.startswith('!'):
+            suffix = suffix[1:]
+            exceptional_domain_re_list.append(suffix)
+            continue
+        suffix_re_list.append(suffix)
+
+    suffix_re_list.sort()
+    suffix_re_list.reverse()
+
+    exceptional_domain_re_list.sort()
+    exceptional_domain_re_list.reverse()
 
     # write public suffixes Regular Expression.
-    suffix_list = list(map(lambda x: x.replace('.', '\\.')
-                           .replace('*', '[^.]+').replace('!', ''),
-                           suffix_list))
-    suffix_list.sort()
-    suffix_list.reverse()
-    write('SUFFIXES_RE = (', suffix_list, ')', 3,
+    write('SUFFIXES_RE = (', suffix_re_list, ')', 3,
+          lambda x, f: ('"%s"' if f else '"|%s"') % '|'.join(x),
+          lambda x: (x, 1))
+    out.write('\n')
+
+    write('EXCEPTIONAL_DOMAIN_RE = (', exceptional_domain_re_list, ')', 3,
           lambda x, f: ('"%s"' if f else '"|%s"') % '|'.join(x),
           lambda x: (x, 1))
     out.write('\n')
